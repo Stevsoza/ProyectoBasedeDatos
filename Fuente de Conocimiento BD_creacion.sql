@@ -1,0 +1,299 @@
+--Programador: Stiven Sosa Maliaño
+
+--Creamos la base de datos
+
+CREATE DATABASE FUENTE_CONOCIMIENTO_UNIVE
+GO
+
+USE FUENTE_CONOCIMIENTO_UNIVE
+GO
+
+--Se crearon columnas nuevas que guardan el estado de los profesores, matriculas en activo e inactivo
+
+--Realizamos la creación de la tabla de los programas
+CREATE TABLE PROGRAMAS (
+	ID_PROGRAMA INT CONSTRAINT PK_ID_PROGRAMA PRIMARY KEY IDENTITY, --creamos un campo en identity para que se almacenen progresivamente los programas con numero nuevo y automaticamente
+	NOMBRE_PROGRAMA VARCHAR(50) NOT NULL,
+	NUMERO_CURSOS INT NOT NULL,
+	DURACION_HORAS INT NOT NULL
+);
+
+--creamos una tabla que almacena los datos de certificaciones necesarias para los cursos
+CREATE TABLE CERTIFICACIONES (
+	COD_CERTIFICACION VARCHAR(10) CONSTRAINT PK_COD_CERTIFICACION PRIMARY KEY,
+	NOMBRE_CERTIFICACION VARCHAR(30) NOT NULL
+);
+
+--creamos la tabla de las materias, 
+CREATE TABLE MATERIAS(
+	COD_MATERIA INT CONSTRAINT PK_MATERIA PRIMARY KEY IDENTITY,
+	ID_PROGRAMA INT CONSTRAINT FK_ID_PROGRAMA FOREIGN KEY (ID_PROGRAMA) REFERENCES PROGRAMAS(ID_PROGRAMA),
+	COD_CERTIFICACION VARCHAR(10) CONSTRAINT FK_COD_CERTIFICACION FOREIGN KEY (COD_CERTIFICACION) REFERENCES CERTIFICACIONES (COD_CERTIFICACION) NOT NULL,
+	NOMBRE_MATERIA VARCHAR(50) NOT NULL,
+	DURACION INT NOT NULL,
+	REQUISITO VARCHAR(20),--este campo queda null por defecto al no ser obligatorio
+	COSTO_MATERIA INT NOT NULL
+);
+
+--creamos la tabla que nos guarda los laboratorios de los cuales dispondra la universidad
+CREATE TABLE LABORATORIOS(
+	ID_LABORATORIO INT CONSTRAINT PK_ID_LABORATORIO PRIMARY KEY IDENTITY,
+	UBICACION VARCHAR(50) NOT NULL
+);
+
+--creamos la tabla que almacenara los datos de los estudiantes
+CREATE TABLE ESTUDIANTES(
+	CARNET INT CONSTRAINT PK_ESTUDIANTES PRIMARY KEY IDENTITY,
+	ID_ESTUDIANTE VARCHAR(20) CONSTRAINT UN_ESTUDIANTE UNIQUE NOT NULL,
+	NOMBRE_ESTUDIANTE  VARCHAR(20) NOT NULL,
+	APELLIDO1 VARCHAR(20) NOT NULL,
+	APELLIDO2 VARCHAR(20),
+	FECHA_NACIMIENTO DATE NOT NULL,
+	DEUDA DECIMAL,
+	--en el siguiente campo se asegura que los datos a introducir sean 'ACT' y 'INA' para saber el estado del estudiante
+	ESTADO VARCHAR(3) CONSTRAINT CK_ESTADO CHECK (ESTADO IN ('ACT','INA')AND ESTADO = UPPER(ESTADO)) CONSTRAINT PRE_EST DEFAULT 'ACT' NOT NULL
+);
+
+--creamos la tabla que almacenara la informacion de los profesores
+CREATE TABLE PROFESORES(
+	COD_PROF INT CONSTRAINT PK_PROFESORES PRIMARY KEY IDENTITY,
+	ID_PROFESOR VARCHAR(20) CONSTRAINT UN_PROFESOR UNIQUE,
+	NOMBRE_PROFESOR VARCHAR(20) NOT NULL,
+	APELLIDO1 VARCHAR(20) NOT NULL,
+	APELLIDO2 VARCHAR(20),
+	TELEFONO VARCHAR(20),
+	ESTADO_P VARCHAR(3) CONSTRAINT CK_ESTADO_PROF CHECK(ESTADO_P IN ('INA','ACT')AND ESTADO_P = UPPER(ESTADO_P))NOT NULL
+);
+
+--creamos una tabla que almacena certificados de los profesores con los que cuentan
+CREATE TABLE CERTIFICACIONES_PROFESORES(
+	COD_PROF INT CONSTRAINT PK_C_PROFESORES PRIMARY KEY CONSTRAINT FK_C_PROFESORES FOREIGN KEY (COD_PROF) REFERENCES PROFESORES(COD_PROF),
+	COD_CERTIFICACION_P VARCHAR(10) NOT NULL,--se agrego un codigo de certificacion que debe coincidir con el de las materias para poder impartirlas
+	INSTITUCION VARCHAR(25) NOT NULL,
+	GRADO VARCHAR(20) NOT NULL
+);
+
+CREATE TABLE AGENDAS_ANIOS(
+	ANIO SMALLINT CONSTRAINT PK_ANIO PRIMARY KEY,
+	CANTIDAD_FERIADOS INT NOT NULL	
+);
+--creamos tabla para identificar los dias feriados del año en curso
+CREATE TABLE AGENDA_FERIADOS(
+	FECHA DATE CONSTRAINT PK_FERIADOS PRIMARY KEY,
+	ANIO SMALLINT CONSTRAINT FK_ANIO_FERIADOS FOREIGN KEY(ANIO)REFERENCES AGENDAS_ANIOS(ANIO),	
+	DESCRIPCION VARCHAR(50)NOT NULL 
+);
+
+--creamos la tabla que se ira llenando progresivamente con materias que se abriran
+CREATE TABLE MATERIAS_ABIERTAS(
+	COD_MATERIA_ABIERTA INT CONSTRAINT PK_C_MATERIA_AB PRIMARY KEY IDENTITY,
+	ID_LABORATORIO INT CONSTRAINT FK_ID_LABO FOREIGN KEY (ID_LABORATORIO) REFERENCES LABORATORIOS(ID_LABORATORIO)NOT NULL,
+	COD_PROF INT CONSTRAINT FK_C_PROF FOREIGN KEY (COD_PROF) REFERENCES PROFESORES(COD_PROF)NOT NULL,
+	COD_MATERIA INT CONSTRAINT FK_C_MATER FOREIGN KEY (COD_MATERIA) REFERENCES MATERIAS(COD_MATERIA)NOT NULL,
+	DIA_INICIO DATE NOT NULL,
+	DIA_FIN DATE NOT NULL,
+	ANIO SMALLINT CONSTRAINT FK_ANIO FOREIGN KEY(ANIO) REFERENCES AGENDAS_ANIOS(ANIO)NOT NULL
+);
+
+
+
+--creamos tabla que nos guardara la información de matriculas realizadas por los estudiantes
+CREATE TABLE MATRICULAS(
+	NUM_MATRICULA INT CONSTRAINT PK_MATRICULAS PRIMARY KEY IDENTITY,
+	CARNET INT CONSTRAINT FK_CARNET FOREIGN KEY (CARNET)REFERENCES ESTUDIANTES(CARNET)NOT NULL,
+	MONTO DECIMAL NOT NULL,
+	ESTADO_M VARCHAR(3) CONSTRAINT CK_ES_M CHECK(ESTADO_M IN('ACT','INA')AND ESTADO_M = UPPER(ESTADO_M))NOT NULL
+);
+
+--creamos una tabla de los pagos que deben hacer los estudiantes y sus estados y notas de las materias
+CREATE TABLE PAGOS(
+	NUM_MATRICULA INT CONSTRAINT FK_N_MATRICULA FOREIGN KEY(NUM_MATRICULA)REFERENCES MATRICULAS(NUM_MATRICULA) NOT NULL,
+	COD_MATERIA_ABIERTA INT CONSTRAINT FK_C_MATERIA_AB FOREIGN KEY(COD_MATERIA_ABIERTA)REFERENCES MATERIAS_ABIERTAS(COD_MATERIA_ABIERTA) NOT NULL,
+	ESTADO_MAT VARCHAR(3) CONSTRAINT CK_ESTADO_MAT CHECK(ESTADO_MAT IN ('APR','REP','APL','ACT')AND ESTADO_MAT = UPPER(ESTADO_MAT))NOT NULL,
+	NOTA SMALLINT NOT NULL,
+	ESTADO_PAGO VARCHAR(10)	CONSTRAINT CK_ESTADO_P CHECK (ESTADO_PAGO IN ('CANCELADO','PENDIENTE')AND ESTADO_PAGO=UPPER(ESTADO_PAGO))NOT NULL,
+	CONSTRAINT PK_PAGOS PRIMARY KEY (NUM_MATRICULA,COD_MATERIA_ABIERTA)
+);
+
+--creamos una tabla para los horarios de las materias que se van a impartir
+CREATE TABLE HORARIOS(
+	COD_MATERIA_ABIERTA INT CONSTRAINT FK_C_MATAB FOREIGN KEY(COD_MATERIA_ABIERTA)REFERENCES MATERIAS_ABIERTAS(COD_MATERIA_ABIERTA)NOT NULL,
+	HORA_INICIO TIME NOT NULL,
+	HORA_FIN TIME NOT NULL,
+	DIA_SEMANA VARCHAR(1) CONSTRAINT CK_DIA CHECK(DIA_SEMANA IN ('L','K','M','J','V')AND DIA_SEMANA= UPPER(DIA_SEMANA))NOT NULL,
+	CONSTRAINT PK_HORARIOS PRIMARY KEY(COD_MATERIA_ABIERTA,HORA_INICIO,HORA_FIN,DIA_SEMANA)
+);
+
+--insertamos los datos de los programas que se van a impartir en la universidad
+INSERT INTO PROGRAMAS(NOMBRE_PROGRAMA,NUMERO_CURSOS,DURACION_HORAS)
+	VALUES('Programacion de dispositivos moviles',4,430),
+	('Programacion de Sistemas de Escritorios',3,450),
+	('Programacion de paginas web',5,400)
+;
+
+--insertamos los datos de las certificaciones de las materias
+INSERT INTO CERTIFICACIONES(COD_CERTIFICACION, NOMBRE_CERTIFICACION)
+VALUES('C1','BASICO'),
+		('C2','ANDROID'),
+		('C3','WEB'),
+		('C4','HTML'),
+		('C5','HTML5'),
+		('C6','CSS'),
+		('C7','JAVASCRIPT'),
+		('C8','NODE'),
+		('C9','JAVA'),
+		('C10','LOGICA')
+;
+
+--insertamos las materias con sus respectivos datos
+INSERT INTO MATERIAS(ID_PROGRAMA,COD_CERTIFICACION,NOMBRE_MATERIA,DURACION,COSTO_MATERIA)
+VALUES(1,'C2','Programación para android I',120,250000),
+		(1,'C2','Programacion para android II',110,240000),
+		(1,'C2','Programacion para android III',100,220000),
+		(1,'C2','Programacion para Aplicaciones mixtas',100,195000),
+		(2,'C1','Logica Computacional',140,225000),
+		(2,'C1','Introduccion a Java',150,335000),
+		(2,'C1','Programacion para android II',160,345000),
+		(3,'C4','HTML',90,185000),
+		(3,'C6','CSS',60,175000),
+		(3,'C2','Javascript',70,180000),
+		(3,'C1','Bootstrap',90,185000),
+		(3,'C8','Node js',90,185000)
+;
+
+
+--insertamos los datos de los profesores
+INSERT INTO PROFESORES(ID_PROFESOR, NOMBRE_PROFESOR,APELLIDO1,APELLIDO2,ESTADO_P)
+VALUES ('239431189','Priscila','Lois','Hernández','ACT'),
+		('465802952','Teo','Cornejo','Galván','ACT'),
+		('467656507','Flavia', 'López', 'Montes','ACT'),
+		('661268202','Guadalupe', 'Acosta', 'Tejero','ACT'),
+		('885416690','Jesusa', 'Bárcena', 'Carrillo','ACT'),
+		('575679298','Timoteo', 'Parejo', 'Arco','ACT'),
+		('78082277','Celestina', 'Cadenas', 'Ariza','ACT'),
+		('658674334','Alma', 'Acosta', 'Morante','ACT'),
+		('266365747','Edgar', 'Clemente', 'Castilla','ACT'),
+		('162738168','Trinidad', 'Conesa', 'Arnau','ACT'),
+		('245568666','Jose','Lizano','Campos','INA')
+;
+
+
+--insertamos los datos de los laboratorios
+INSERT INTO LABORATORIOS(UBICACION)
+VALUES ('Pabellon 1'),
+		('Pabellon 2'),
+		('Pabellon 1'),
+		('Pabellon 3'),
+		('Pabellon 2'),
+		('Pabellon 2'),
+		('Pabellon 1'),
+		('Pabellon 3'),
+		('Pabellon 2'),
+		('Pabellon 1')
+;
+
+--insertamos los datos de los estudiantes
+INSERT INTO ESTUDIANTES(ID_ESTUDIANTE,NOMBRE_ESTUDIANTE,APELLIDO1,APELLIDO2,FECHA_NACIMIENTO,DEUDA,ESTADO)
+VALUES ('481515308','Ezequiel', 'Victoriano', 'Crespo','19920614',0,'ACT'),
+		('872644240','Gustavo', 'Manzano', 'Recio','19950129',0,'ACT'),
+		('46799079','Raquel', 'Acevedo', 'Villalba','19940722',0,'ACT'),
+		('68159353','Juan', 'Catalán', 'Torrecilla','19990916',0,'ACT'),
+		('364921980','Martina', 'Plana', 'Muro','19960704',0,'ACT'),
+		('670567981','Judith', 'Royo', 'Sanjuan','19980319',0,'ACT'),
+		('806608477','Soraya', 'Coello', 'Canals','20000425',0,'ACT'),
+		('719966918','Melissa', 'Cervantes', 'Duran','19890523',0,'ACT'),
+		('843182605','Soledad', 'Lasa', 'Múñiz','19960226',0,'ACT'),
+		('475541796','Susana', 'Rios', 'Barrera','19950428',0,'ACT')
+;
+
+INSERT INTO AGENDAS_ANIOS(ANIO,CANTIDAD_FERIADOS)
+VALUES(2021,11);
+
+--insertamos los datos de los dias feriados del año
+INSERT INTO AGENDA_FERIADOS(FECHA,ANIO,DESCRIPCION)
+VALUES ('20210101',2021,'Año nuevo'),
+		('20210401',2021,'Jueves Santo'),
+		('20210402',2021,'Viernes Santo'),
+		('20210411',2021,'Día Juan Santamaria'),
+		('20210503',2021,'Día del trabajador'),
+		('20210726',2021,'Anexion Guanacaste'),
+		('20210802',2021,'Día de la Virgen de los Angeles'),
+		('20210815',2021,'Día de la madre'),
+		('20210913',2021,'Día de la Independencia'),
+		('20211129',2021,'Abolicion del Ejercito'),
+		('20211225',2021,'Día de Navidad')
+;
+
+--insertamos las materias a las cuales se les hace apertura
+INSERT INTO MATERIAS_ABIERTAS(ID_LABORATORIO,COD_PROF,COD_MATERIA,DIA_INICIO,DIA_FIN,ANIO)
+VALUES (1,1,1,'20210116','20211121',2021),
+		(2,2,2,'20210221','20210923',2021),
+		(3,3,3,'20210317','20220123',2021),
+		(4,4,4,'20210416','20220203',2021),
+		(5,5,5,'20210506','20220310',2021),
+		(6,6,6,'20210622','20220409',2021),
+		(7,7,7,'20210716','20220510',2021),
+		(8,8,8,'20210816','20220603',2021),
+		(9,9,9,'20210916','20220720',2021),
+		(10,10,10,'20211106','20220825',2021)
+;
+
+--insertamos los datos de las matriculas de los estudiantes
+INSERT INTO MATRICULAS(CARNET,MONTO,ESTADO_M)
+VALUES(1,10000,'ACT'),
+		(2,15000,'ACT'),
+		(3,10000,'ACT'),
+		(4,15000,'ACT'),
+		(5,10000,'ACT'),
+		(6,15000,'ACT'),
+		(7,10000,'ACT'),
+		(8,15000,'ACT'),
+		(9,10000,'ACT'),
+		(10,15000,'ACT')
+;
+
+--insertamos la informacion que se produce al realizar la matricula y los pagos correspondientes que se realizan
+INSERT INTO PAGOS(NUM_MATRICULA,COD_MATERIA_ABIERTA,ESTADO_MAT,NOTA,ESTADO_PAGO)
+VALUES (1,1,'ACT',0,'CANCELADO'),
+	(2,2,'ACT',0,'PENDIENTE'),
+	(3,1,'ACT',0,'CANCELADO'),
+	(4,7,'ACT',0,'PENDIENTE'),
+	(5,2,'ACT',0,'CANCELADO'),
+	(5,7,'ACT',0,'CANCELADO'),
+	(4,1,'ACT',0,'PENDIENTE'),
+	(2,9,'ACT',0,'CANCELADO'),
+	(1,8,'ACT',0,'CANCELADO'),
+	(8,2,'ACT',0,'PENDIENTE')
+;
+
+--insertamos las certificaciones de los profesores
+INSERT INTO CERTIFICACIONES_PROFESORES(COD_PROF,COD_CERTIFICACION_P,INSTITUCION,GRADO)
+VALUES (1,'C1','UTN','BACHILLERATO'),
+		(2,'C2','UCR','LICENCIATURA'),
+		(3,'C3','ULICORI','BACHILLERATO'),
+		(4,'C4','UNA','BACHILLERATO'),
+		(5,'C5','ULATINA','LICENCIATURA'),
+		(6,'C6','USJ','BACHILLERATO'),
+		(7,'C7','UH','LICENCIATURA'),
+		(8,'C8','DOMESTIKA','DIPLOMA'),
+		(9,'C9','CREHANA','DIPLOMA'),
+		(10,'C10','UNAM','BACHILLERATO')
+;
+
+--insertamos los horarios en los cuales se van a impartir las materias abiertas
+INSERT INTO HORARIOS(COD_MATERIA_ABIERTA,HORA_INICIO,HORA_FIN,DIA_SEMANA)
+VALUES (1,'10:00:00.0','11:59:00.0','L'),
+		(2,'08:00:00.0','09:59:00.0','K'),
+		(3,'07:00:00.0','09:59:00.0','M'),
+		(4,'13:00:00.0','15:59:00.0','J'),
+		(5,'14:00:00.0','16:59:00.0','V'),
+		(6,'13:00:00.0','16:59:00.0','L'),
+		(7,'13:00:00.0','16:59:00.0','K'),
+		(8,'13:00:00.0','16:59:00.0','M'),
+		(9,'08:00:00.0','16:59:00.0','J'),
+		(10,'09:00:00.0','16:59:00.0','V')
+;
+
+
+
+
